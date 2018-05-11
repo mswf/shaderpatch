@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <memory>
 
 #include <Windows.h>
@@ -16,4 +17,5 @@ struct Handle_deleter {
 };
 
 using Unique_handle = std::unique_ptr<void, Handle_deleter>;
+
 }

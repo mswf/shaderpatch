@@ -136,6 +136,12 @@ public:
       return (_pointer != nullptr);
    }
 
+   template<typename Other>
+   [[nodiscard]] long as(Com_ptr<Other>& other) const noexcept
+   {
+      return _pointer->QueryInterface(__uuidof(Other), other.void_clear_and_assign());
+   }
+
 private:
    Class* _pointer = nullptr;
 };
