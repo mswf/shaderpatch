@@ -15,6 +15,7 @@ Editor::Editor(HWND window) : _window{window}
 
    create_device();
    create_swap_chain();
+   create_resources();
 }
 
 void Editor::tick()
@@ -25,7 +26,10 @@ void Editor::tick()
 void Editor::window_size_changed(glm::ivec2 size) noexcept
 {
    _window_size = size;
+   _bacK_buffer = nullptr;
+
    _swap_chain->ResizeBuffers(2, _window_size.x, _window_size.y, _backbuffer_format, 0);
+   create_resources();
 }
 
 void Editor::activated() noexcept {}
@@ -108,7 +112,10 @@ void Editor::create_swap_chain()
                                                    _swap_chain.clear_and_assign()));
 
    throw_if_failed(factory->MakeWindowAssociation(_window, DXGI_MWA_NO_ALT_ENTER));
+}
 
+void Editor::create_resources()
+{
    Com_ptr<ID3D11Texture2D> bacK_buffer;
 
    throw_if_failed(

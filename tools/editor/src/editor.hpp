@@ -32,6 +32,7 @@ public:
 private:
    void create_device();
    void create_swap_chain();
+   void create_resources();
 
    const HWND _window;
    glm::ivec2 _window_size;
