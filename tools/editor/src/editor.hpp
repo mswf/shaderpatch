@@ -23,11 +23,11 @@ public:
 
    void window_size_changed(glm::ivec2 size) noexcept;
 
-   void activated() noexcept {}
-   void deactivated() noexcept {}
+   void activated() noexcept;
+   void deactivated() noexcept;
 
-   void suspended() noexcept {}
-   void resuming() noexcept {}
+   void suspended() noexcept;
+   void resumed() noexcept;
 
 private:
    void create_device();

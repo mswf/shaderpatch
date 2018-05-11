@@ -1,6 +1,7 @@
 
 #include "editor.hpp"
 #include "debug_state.hpp"
+#include "synced_io.hpp"
 #include "throw_if_failed.hpp"
 
 namespace sp::editor {
@@ -26,6 +27,14 @@ void Editor::window_size_changed(glm::ivec2 size) noexcept
    _window_size = size;
    _swap_chain->ResizeBuffers(2, _window_size.x, _window_size.y, _backbuffer_format, 0);
 }
+
+void Editor::activated() noexcept {}
+
+void Editor::deactivated() noexcept {}
+
+void Editor::suspended() noexcept {}
+
+void Editor::resumed() noexcept {}
 
 void Editor::create_device()
 {
