@@ -20,7 +20,13 @@ Editor::Editor(HWND window) : _window{window}
 
 void Editor::update()
 {
-   _swap_chain->Present(1, 0);
+   if (const auto hr = _swap_chain->Present(1, 0);
+       hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
+      handle_device_lost();
+   }
+   else {
+      throw_if_failed(hr);
+   }
 }
 
 void Editor::window_size_changed(glm::ivec2 size) noexcept
@@ -121,6 +127,18 @@ void Editor::create_resources()
       _swap_chain->GetBuffer(0, IID_PPV_ARGS(bacK_buffer.clear_and_assign())));
    throw_if_failed(_device->CreateRenderTargetView(bacK_buffer.get(), nullptr,
                                                    _bacK_buffer.clear_and_assign()));
+}
+
+void Editor::handle_device_lost()
+{
+   _bacK_buffer = nullptr;
+   _swap_chain = nullptr;
+   _device_context = nullptr;
+   _device = nullptr;
+
+   create_device();
+   create_swap_chain();
+   create_resources();
 }
 
 }

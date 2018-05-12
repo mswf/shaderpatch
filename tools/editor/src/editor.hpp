@@ -34,6 +34,8 @@ private:
    void create_swap_chain();
    void create_resources();
 
+   void handle_device_lost();
+
    const HWND _window;
    glm::ivec2 _window_size;
 
