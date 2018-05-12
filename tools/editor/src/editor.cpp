@@ -18,9 +18,9 @@ Editor::Editor(HWND window) : _window{window}
    create_resources();
 }
 
-void Editor::tick()
+void Editor::update()
 {
-   _swap_chain->Present(0, 0);
+   _swap_chain->Present(1, 0);
 }
 
 void Editor::window_size_changed(glm::ivec2 size) noexcept
@@ -104,13 +104,12 @@ void Editor::create_swap_chain()
    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
    desc.BufferCount = 2;
 
-   DXGI_SWAP_CHAIN_FULLSCREEN_DESC fsSwapChainDesc{};
-   fsSwapChainDesc.Windowed = true;
+   DXGI_SWAP_CHAIN_FULLSCREEN_DESC swap_chain_desc{};
+   swap_chain_desc.Windowed = true;
 
    throw_if_failed(factory->CreateSwapChainForHwnd(_device.get(), _window, &desc,
-                                                   &fsSwapChainDesc, nullptr,
+                                                   &swap_chain_desc, nullptr,
                                                    _swap_chain.clear_and_assign()));
-
    throw_if_failed(factory->MakeWindowAssociation(_window, DXGI_MWA_NO_ALT_ENTER));
 }
 

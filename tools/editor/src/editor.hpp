@@ -19,7 +19,7 @@ public:
    Editor(Editor&&) = default;
    Editor& operator=(Editor&&) = default;
 
-   void tick();
+   void update();
 
    void window_size_changed(glm::ivec2 size) noexcept;
 
