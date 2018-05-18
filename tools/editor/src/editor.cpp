@@ -8,6 +8,8 @@ namespace sp::editor {
 
 Editor::Editor(HWND window) : _window{window}
 {
+   if (_editor_created.exchange(true)) std::terminate();
+
    RECT rect{};
    GetClientRect(window, &rect);
 

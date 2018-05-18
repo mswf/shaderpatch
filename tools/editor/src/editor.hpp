@@ -2,6 +2,8 @@
 
 #include "com_ptr.hpp"
 
+#include <atomic>
+
 #include <glm/glm.hpp>
 
 #include <Windows.h>
@@ -46,6 +48,7 @@ private:
    Com_ptr<ID3D11RenderTargetView> _bacK_buffer;
 
    static constexpr auto _backbuffer_format = DXGI_FORMAT_B8G8R8A8_UNORM;
+   inline static std::atomic_bool _editor_created = false;
 };
 
 }
