@@ -33,6 +33,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)req_file_helpers.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)shader_flags.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)shader_metadata.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)shared_array.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)string_utilities.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)synced_io.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)throw_if_failed.hpp" />

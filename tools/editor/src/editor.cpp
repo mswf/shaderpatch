@@ -53,7 +53,7 @@ void Editor::create_device()
    if constexpr (debug_build) creation_flags |= D3D11_CREATE_DEVICE_DEBUG;
 
    static const D3D_FEATURE_LEVEL feature_levels[] = {
-      D3D_FEATURE_LEVEL_9_3,
+      D3D_FEATURE_LEVEL_11_0,
    };
 
    Com_ptr<ID3D11Device> device;

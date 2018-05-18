@@ -30,5 +30,23 @@
     <ClInclude Include="src\editor.hpp">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\world.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\object_class.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\object_instance.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\assets_manager.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\material.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\model.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
