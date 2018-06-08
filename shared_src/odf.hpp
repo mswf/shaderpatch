@@ -166,6 +166,13 @@ inline Definition from_istream(std::istream& stream)
    return def;
 }
 
+inline std::istream& operator>>(std::istream& stream, Definition& def)
+{
+   def = from_istream(stream);
+
+   return stream;
+}
+
 namespace detail {
 
 inline void handle_section(std::istream& stream, Definition& def,

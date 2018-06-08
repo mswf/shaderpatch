@@ -1,12 +1,20 @@
 
 #include "editor.hpp"
 #include "debug_state.hpp"
+#include "file_dialogs.hpp"
+#include "imgui_impl_dx11.h"
 #include "synced_io.hpp"
 #include "throw_if_failed.hpp"
 
+#include <string>
+#include <string_view>
+
+using namespace std::literals;
+
 namespace sp::editor {
 
-Editor::Editor(HWND window) : _window{window}
+Editor::Editor(HWND window)
+   : _window{window}, _imgui_context{ImGui::CreateContext(), &ImGui::DestroyContext}
 {
    if (_editor_created.exchange(true)) std::terminate();
 
@@ -18,10 +26,21 @@ Editor::Editor(HWND window) : _window{window}
    create_device();
    create_swap_chain();
    create_resources();
+   init_imgui_impl();
 }
 
 void Editor::update()
 {
+   constexpr float colour[] = {0.0f, 0.0f, 0.0f, 1.0f};
+   _device_context->ClearRenderTargetView(_bacK_buffer.get(), colour);
+
+   ImGui_ImplDX11_NewFrame();
+
+   if (_project_unopened) open_project();
+
+   ImGui::Render();
+   ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
    if (const auto hr = _swap_chain->Present(1, 0);
        hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) {
       handle_device_lost();
@@ -129,6 +148,15 @@ void Editor::create_resources()
       _swap_chain->GetBuffer(0, IID_PPV_ARGS(bacK_buffer.clear_and_assign())));
    throw_if_failed(_device->CreateRenderTargetView(bacK_buffer.get(), nullptr,
                                                    _bacK_buffer.clear_and_assign()));
+
+   auto view = {_bacK_buffer.get()};
+   _device_context->OMSetRenderTargets(view.size(), view.begin(), nullptr);
+}
+
+void Editor::init_imgui_impl()
+{
+   ImGui_ImplDX11_Init(_window, _device.get(), _device_context.get());
+   ImGui_ImplDX11_CreateDeviceObjects();
 }
 
 void Editor::handle_device_lost()
@@ -138,9 +166,36 @@ void Editor::handle_device_lost()
    _device_context = nullptr;
    _device = nullptr;
 
+   ImGui_ImplDX11_Shutdown();
+
    create_device();
    create_swap_chain();
    create_resources();
+   init_imgui_impl();
 }
 
+void Editor::open_project()
+{
+   ImGui::SetNextWindowPos(glm::vec2{_window_size} * 0.5f, ImGuiCond_Always,
+                           {0.5f, 0.5f});
+   ImGui::Begin("Projects", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+   if (ImGui::Button("Open Project")) {
+      if (auto path = win32::folder_dialog(); path) {
+         _project = Project{*path};
+         _project_unopened = false;
+
+         std::wstring win_name = window_title;
+         win_name += L" - "sv;
+         win_name += path->stem().native();
+
+         SetWindowTextW(_window, win_name.c_str());
+      }
+   }
+
+   ImGui::Text("Recent Projects");
+   ImGui::Separator();
+
+   ImGui::End();
+}
 }

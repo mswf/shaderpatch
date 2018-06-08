@@ -1,30 +1,76 @@
 #pragma once
 
-#include "object_class.hpp"
+#include "asset_loaders.hpp"
+#include "compose_exception.hpp"
+#include "exceptions.hpp"
+#include "model.hpp"
+#include "odf.hpp"
 #include "string_utilities.hpp"
 
 #include <filesystem>
+#include <fstream>
+#include <memory>
+#include <optional>
+#include <type_traits>
+#include <utility>
 
 #include <boost/container/flat_map.hpp>
 
 namespace sp::editor {
 
+class Assets_manager;
+
 template<typename Type>
-struct Basic_asset {
-   Type asset;
+class Basic_asset {
+public:
+   Type& asset(Assets_manager& manager)
+   {
+      if (!_asset) load(manager);
+
+      return *_asset;
+   }
+
+   Type* peak_asset() noexcept
+   {
+      return _asset ? &_asset.value() : nullptr;
+   }
+
+   const Type* peak_asset() const noexcept
+   {
+      return _asset ? &_asset.value() : nullptr;
+   }
+
    std::filesystem::path path;
+
+private:
+   void load(Assets_manager& manager)
+   {
+      try {
+         _asset = Asset_loader<Type>{}.load(path, manager);
+      }
+      catch (std::exception& e) {
+         throw compose_exception<Asset_load_error>("Exception occured while loading "sv,
+                                                   path, " message was: "sv,
+                                                   e.what());
+      }
+   }
+
+   std::optional<Type> _asset;
 };
 
 template<typename Type>
 using Assets_container =
-   boost::container::flat_map<Ci_string, Basic_asset<Type>, std::less<>>;
+   boost::container::flat_map<Ci_string, std::shared_ptr<Basic_asset<Type>>, std::less<>>;
 
 class Assets_manager {
 public:
-   Assets_container<Object_class> object_classes;
+   void search_for_assets(const std::filesystem::path& path);
+
+   Assets_container<odf::Definition> object_classes;
+   Assets_container<Model> model_files;
 };
 
-inline void search_for_assets(Assets_manager& manager,
-                              const std::filesystem::path& from);
+using Odf_asset = Basic_asset<odf::Definition>;
+using Model_asset = Basic_asset<Model>;
 
 }

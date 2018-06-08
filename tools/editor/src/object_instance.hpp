@@ -1,23 +1,27 @@
 #pragma once
 
-#include "object_class.hpp"
+#include "assets_manager.hpp"
+#include "config_file.hpp"
 
 #include <memory>
-#include <unordered_map>
+#include <utility>
+
+#include <glm/glm.hpp>
 
 namespace sp::editor {
 
 class Object_instance {
 public:
-   using Key_value = Object_class::Key_value;
+   Object_instance(const cfg::Node& object_node, const Assets_manager& assets);
 
-   auto properties() noexcept -> std::unordered_map<std::string, Key_value>&;
-   auto properties() const noexcept
-      -> const std::unordered_map<std::string, Key_value>&;
+   int team;
+   odf::Properties properties;
+   glm::mat4 transform{};
 
-   auto object_class() const noexcept -> const std::shared_ptr<Object_class>&;
+   auto definition() const noexcept -> const std::shared_ptr<Odf_asset>&;
 
 private:
+   std::shared_ptr<Odf_asset> _definition;
 };
 
 }

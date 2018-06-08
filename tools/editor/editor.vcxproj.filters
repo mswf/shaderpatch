@@ -17,6 +17,39 @@
     <ClCompile Include="src\editor.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\imgui_impl_dx11.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\project.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assets_manager.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\world.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\object_instance.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\asset_loaders.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\msh\operations.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\msh\scene.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\msh\load.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\geom\procedural.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\msh\consolidator.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\icons.rc">
@@ -33,9 +66,6 @@
     <ClInclude Include="src\world.hpp">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src\object_class.hpp">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\object_instance.hpp">
       <Filter>src</Filter>
     </ClInclude>
@@ -48,5 +78,28 @@
     <ClInclude Include="src\model.hpp">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\imgui_impl_dx11.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\project.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\aa_bbox.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\asset_loaders.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\msh\operations.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\msh\scene.hpp" />
+    <ClInclude Include="src\msh\load.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\msh\iterator.hpp" />
+    <ClInclude Include="src\geom\procedural.hpp" />
+    <ClInclude Include="src\geom\unwrap.hpp" />
+    <ClInclude Include="src\msh\consolidator.hpp" />
   </ItemGroup>
 </Project>

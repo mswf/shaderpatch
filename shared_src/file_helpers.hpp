@@ -47,4 +47,16 @@ inline auto load_vector_file(const std::filesystem::path& path)
 
    return buf;
 }
+
+inline std::ifstream safe_ifile_open(const std::filesystem::path& path)
+{
+   std::ifstream file{path};
+
+   if (!file.is_open()) {
+      throw compose_exception<std::runtime_error>("Failed to open file: ", path, '.');
+   }
+
+   return file;
+}
+
 }

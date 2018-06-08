@@ -15,53 +15,45 @@
 
 namespace sp::editor {
 
-class Mesh {
-public:
-   enum class Type { mesh, collision, collision_node, shadow };
-
+struct Mesh {
    struct Vertex {
       glm::vec3 position;
       glm::vec3 normal;
-      glm::vec3 tangent;
-      glm::vec3 bitangent;
       glm::vec2 texcoords;
       glm::vec2 lightmap_texcoords;
    };
 
-   static_assert(sizeof(Vertex) == 64);
+   static_assert(sizeof(Vertex) == 40);
 
-   struct Meta_vertex {
-      glm::vec3 position;
-      glm::vec3 normal;
-   };
-
-   static_assert(sizeof(Meta_vertex) == 24);
-
-   Type type;
-   glm::mat3x4 transform;
+   glm::mat4 transform;
    int material_index = -1;
 
    int index_buffer_offset = -1;
    int vertex_buffer_offset = -1;
-   int vertex_buffer_stride = -1;
-
-   Shared_array<std::array<std::uint16_t, 3>> indices;
-   Shared_array<Vertex> vertices;
+   constexpr static int vertex_buffer_stride = sizeof(Vertex);
 };
 
-class Model_node {
-public:
-   std::vector<Mesh> meshes;
-   std::vector<Model_node> nodes;
+struct Meta_mesh {
+   struct Vertex {
+      glm::vec3 position;
+      glm::vec3 normal;
+   };
 
-   glm::mat3x4 transform;
+   static_assert(sizeof(Vertex) == 24);
+
+   glm::mat4 transform;
+
+   int index_buffer_offset = -1;
+   int vertex_buffer_offset = -1;
+   constexpr static int vertex_buffer_stride = sizeof(Vertex);
 };
 
 class Model {
 public:
+   Model();
+
    std::vector<Material> materials;
    std::vector<Mesh> meshes;
-   std::vector<Model_node> nodes;
 
    void drop_gpu_resources() noexcept;
 

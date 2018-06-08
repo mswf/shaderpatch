@@ -36,6 +36,7 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
     <Import Project="..\..\shared_src\shared_src.vcxitems" Label="Shared" />
+    <Import Project="..\..\submodules\imgui\imgui.vcxitems" Label="Shared" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -61,7 +62,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -72,8 +73,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d11.lib;dxguid.lib;uuid.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>boost_iostreams-vc140-mt.lib;boost_system-vc140-mt.lib;d3dcompiler.lib;d3d11.lib;dxguid.lib;uuid.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>$(SolutionDir)/submodules/vcpkg/installed/x86-windows-static-md/lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -81,7 +83,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NOMINMAX;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -90,8 +92,9 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d11.lib;dxguid.lib;uuid.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>boost_iostreams-vc140-mt-gd.lib;boost_system-vc140-mt-gd.lib;d3dcompiler.lib;d3d11.lib;dxguid.lib;uuid.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>$(SolutionDir)/submodules/vcpkg/installed/x86-windows-static-md/debug/lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -99,13 +102,34 @@
     <Image Include="editor_small.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\assets_manager.cpp" />
+    <ClCompile Include="src\asset_loaders.cpp" />
     <ClCompile Include="src\editor.cpp" />
+    <ClCompile Include="src\geom\procedural.cpp" />
+    <ClCompile Include="src\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\msh\consolidator.cpp" />
+    <ClCompile Include="src\msh\load.cpp" />
+    <ClCompile Include="src\msh\scene.cpp" />
+    <ClCompile Include="src\msh\operations.cpp" />
+    <ClCompile Include="src\object_instance.cpp" />
+    <ClCompile Include="src\project.cpp" />
+    <ClCompile Include="src\world.cpp" />
+    <ClInclude Include="src\aa_bbox.hpp" />
+    <ClInclude Include="src\asset_loaders.hpp" />
+    <ClInclude Include="src\geom\procedural.hpp" />
+    <ClInclude Include="src\geom\unwrap.hpp" />
+    <ClInclude Include="src\imgui_impl_dx11.h" />
     <ClInclude Include="src\material.hpp" />
     <ClInclude Include="src\model.hpp" />
     <ClInclude Include="src\assets_manager.hpp" />
-    <ClInclude Include="src\object_class.hpp" />
+    <ClInclude Include="src\msh\consolidator.hpp" />
+    <ClInclude Include="src\msh\iterator.hpp" />
+    <ClInclude Include="src\msh\load.hpp" />
+    <ClInclude Include="src\msh\operations.hpp" />
+    <ClInclude Include="src\msh\scene.hpp" />
     <ClInclude Include="src\object_instance.hpp" />
+    <ClInclude Include="src\project.hpp" />
     <ClInclude Include="src\world.hpp" />
   </ItemGroup>
   <ItemGroup>

@@ -15,7 +15,7 @@ namespace sp {
 
 template<typename Type>
 class Shared_array {
-   static_assert(std::is_default_constructible_v<Allocator>,
+   static_assert(std::is_default_constructible_v<Type>,
                  "Type must be default constructable.");
 
    using value_type = Type;
@@ -258,7 +258,7 @@ inline bool operator==(const Shared_array<Type>& left, const Shared_array<Type>&
 template<typename Type>
 inline bool operator!=(const Shared_array<Type>& left, const Shared_array<Type>& right)
 {
-   return !(left == right)
+   return !(left == right);
 }
 
 template<typename Type>

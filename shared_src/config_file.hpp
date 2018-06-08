@@ -19,6 +19,8 @@ namespace sp::cfg {
 
 class Node {
 public:
+   using key_type = std::string;
+   using mapped_type = Node;
    using value_type = std::pair<std::string, Node>;
    using reference = value_type&;
    using const_reference = const value_type&;
@@ -28,6 +30,56 @@ public:
    using size_type = std::vector<std::pair<std::string, Node>>::size_type;
 
    using Node_value = std::variant<std::string, long long, double>;
+
+   struct Value_proxy {
+      Node& node;
+      const int value_index;
+
+      Value_proxy(const Value_proxy&) = delete;
+
+      template<typename Type>
+      Value_proxy& operator=(const Type& value)
+      {
+         node.set_value(value, value_index);
+      }
+
+      template<typename Type>
+      Value_proxy& operator=(Type&& value)
+      {
+         node.set_value(std::forward<Type>(value), value_index);
+      }
+
+      operator std::string() const
+      {
+         return node.get_value<std::string>(value_index);
+      }
+
+      template<typename Type, typename = std::enable_if_t<!std::is_same_v<Type, char>>,
+               typename = std::enable_if_t<std::is_fundamental_v<Type>>>
+      operator Type() const
+      {
+         return node.get_value<Type>(value_index);
+      }
+   };
+
+   struct Const_value_proxy {
+      const Node& node;
+      const int value_index;
+
+      Const_value_proxy(const Const_value_proxy&) = delete;
+
+      operator std::string() const
+      {
+         return node.get_value<std::string>(value_index);
+      }
+
+      template<typename Type, typename = std::enable_if_t<!std::is_same_v<Type, char>>,
+               typename = std::enable_if_t<std::is_fundamental_v<Type>>>
+      operator Type() const
+      {
+         return node.get_value<Type>(value_index);
+      }
+   };
 
    Node() = default;
 
@@ -177,6 +229,75 @@ public:
       return _children.back();
    }
 
+   template<typename Key_comparable>
+   auto find(const Key_comparable& key) noexcept -> iterator
+   {
+      for (auto it = begin(); it != end(); ++it) {
+         if (it->first == key) return it;
+      }
+
+      return end();
+   }
+
+   template<typename Key_comparable>
+   auto find(const Key_comparable& key) const noexcept -> const_iterator
+   {
+      for (auto it = cbegin(); it != cend(); ++it) {
+         if (it->first == key) return it;
+      }
+
+      return cend();
+   }
+
+   template<typename Key_comparable>
+   auto at(const Key_comparable& key) -> mapped_type&
+   {
+      if (auto it = find(key); it != end()) return *it->second;
+
+      throw std::out_of_range{"no element with key exists"s};
+   }
+
+   template<typename Key_comparable>
+   auto at(const Key_comparable& key) const -> const mapped_type&
+   {
+      if (auto it = find(key); it != cend()) return it->second;
+
+      throw std::out_of_range{"no element with key exists"s};
+   }
+
+   template<typename Key_constructable>
+   auto operator[](const Key_constructable& key) -> mapped_type&
+   {
+      if (auto it = find(key); it != end()) return it->second;
+
+      return emplace_back(key_type{key}, mapped_type{}).second;
+   }
+
+   auto operator[](key_type&& key) -> mapped_type&
+   {
+      if (auto it = find(key); it != end()) return it->second;
+
+      return emplace_back(key, mapped_type{}).second;
+   }
+
+   template<typename String_comparable>
+   bool exists(const String_comparable& other) const noexcept
+   {
+      return find(other) != cend();
+   }
+
+   template<typename String_comparable>
+   auto count(const String_comparable& other) const noexcept -> size_type
+   {
+      size_type count{};
+
+      for (auto it = cbegin(); it != cend(); ++it) {
+         if (it->first == other) ++count;
+      }
+
+      return count;
+   }
+
    template<typename... Args>
    auto emplace_back(Args... args) -> reference
    {
@@ -239,7 +360,7 @@ public:
    }
 
    template<typename Value_type>
-   auto get_value(int index = 0) const noexcept -> Value_type
+   auto get_value(int index = 0) const -> Value_type
    {
       auto val = _values.at(index);
 
@@ -268,7 +389,7 @@ public:
    }
 
    template<typename Value_type>
-   void set_value(const Value_type& value, int index = 0) noexcept
+   void set_value(const Value_type& value, int index = 0)
    {
       if constexpr (std::is_floating_point_v<Value_type>) {
          _values.at(index) = static_cast<double>(value);
@@ -283,6 +404,24 @@ public:
       else {
          static_assert(false, "Unknown Value_type.");
       }
+   }
+
+   auto value(int index = 0) -> Value_proxy
+   {
+      if (index > static_cast<int>(_values.size())) {
+         throw std::out_of_range{"index out of range"};
+      }
+
+      return {*this, index};
+   }
+
+   auto value(int index = 0) const -> Const_value_proxy
+   {
+      if (index > static_cast<int>(_values.size())) {
+         throw std::out_of_range{"index out of range"};
+      }
+
+      return {*this, index};
    }
 
    template<typename... Args>
@@ -314,7 +453,7 @@ private:
    std::string _trailing_comment;
 };
 
-void swap(Node& l, Node r) noexcept
+inline void swap(Node& l, Node r) noexcept
 {
    std::swap(l, r);
 }
@@ -336,7 +475,7 @@ struct Indent {
    int count = 0;
 };
 
-inline std::ostream& operator<<(std::ostream& stream, const Indent& indent);
+std::ostream& operator<<(std::ostream& stream, const Indent& indent);
 
 template<typename Values_range>
 void print_values(std::ostream& stream, const Values_range& values);
@@ -420,6 +559,8 @@ inline std::ostream& to_ostream(std::ostream& stream, const Node& node, int leve
 inline std::istream& operator>>(std::istream& stream, Node& node)
 {
    node = from_istream(stream);
+
+   return stream;
 }
 
 inline std::ostream& operator<<(std::ostream& stream, const Node& node)
@@ -539,8 +680,10 @@ inline std::ostream& operator<<(std::ostream& stream, const Indent& indent)
 }
 
 template<typename Values_range>
-void print_values(std::ostream& stream, const Values_range& values)
+inline void print_values(std::ostream& stream, const Values_range& values)
 {
+   using namespace std::literals;
+
    bool first = true;
 
    for (const auto& v : values) {
@@ -572,8 +715,10 @@ void print_values(std::ostream& stream, const Values_range& values)
 }
 
 template<typename Comments_range>
-void print_comments(std::ostream& stream, int level, const Comments_range& comments)
+inline void print_comments(std::ostream& stream, int level, const Comments_range& comments)
 {
+   using namespace std::literals;
+
    for (const auto& comment : comments) {
       stream << Indent{level} << "// "sv << comment << '\n';
    }

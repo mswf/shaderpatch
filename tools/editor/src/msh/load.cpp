@@ -1,5 +1,7 @@
-
-#include "msh_file.hpp"
+#include "load.hpp"
+#include "../geom/procedural.hpp"
+#include "iterator.hpp"
+#include "operations.hpp"
 #include "string_utilities.hpp"
 #include "ucfb_reader.hpp"
 
@@ -21,15 +23,15 @@ namespace sp::editor::msh {
 
 namespace {
 
-Model read_msh2(ucfb::Reader_strict<"MSH2"_mn> msh_reader);
+Scene read_msh2(ucfb::Reader_strict<"MSH2"_mn> msh_reader);
 
-void read_sinf(ucfb::Reader_strict<"SINF"_mn> scene_info, Model& model);
+void read_sinf(ucfb::Reader_strict<"SINF"_mn> scene_info, Scene& scene);
 
-void read_matl(ucfb::Reader_strict<"MATL"_mn> materials, Model& model);
+void read_matl(ucfb::Reader_strict<"MATL"_mn> materials, Scene& scene);
 
 Material read_matd(ucfb::Reader_strict<"MATD"_mn> matd_reader);
 
-void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Model& model,
+void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Scene& scene,
                const boost::container::flat_map<std::int32_t, std::string>& index_map);
 
 auto read_modl_index_name(ucfb::Reader_strict<"MODL"_mn> modl_reader)
@@ -43,10 +45,10 @@ void read_geom(ucfb::Reader_strict<"GEOM"_mn> geom_reader, Node& node,
 Segment read_segm(ucfb::Reader_strict<"SEGM"_mn> segm_reader);
 
 auto read_shdw(ucfb::Reader_strict<"SHDW"_mn> shdw_reader)
-   -> std::pair<std::vector<glm::vec3>, std::vector<glm::u16vec3>>;
+   -> std::pair<std::vector<glm::vec3>, std::vector<std::array<std::uint16_t, 3>>>;
 
 auto read_strp(ucfb::Reader_strict<"STRP"_mn> strp_reader)
-   -> std::vector<std::uint16_t>;
+   -> std::vector<std::array<std::uint16_t, 3>>;
 
 Cloth read_clth(ucfb::Reader_strict<"CLTH"_mn> clth_reader);
 
@@ -67,80 +69,73 @@ auto read_attribute(Reader reader) -> std::vector<Attribute_type>;
 auto build_msh_index_map(ucfb::Reader_strict<"MSH2"_mn> msh_reader)
    -> boost::container::flat_map<std::int32_t, std::string>;
 
-Aa_bbox build_model_aabb(const Model& model) noexcept;
-
-Aa_bbox build_node_aabb(const Node& node) noexcept;
-
-Aa_bbox build_segments_aabb(const std::vector<Segment>& segments) noexcept;
-
-Aa_bbox build_cloths_aabb(const std::vector<Cloth>& cloths) noexcept;
-
 Node_type get_node_type(std::string_view name, Model_type model_type) noexcept;
 
-void combine_strips(std::vector<std::uint16_t>& target,
-                    std::vector<std::uint16_t>& other);
+bool is_degenerate_triangle(std::array<std::uint16_t, 3> tri);
 
 }
 
-Model load_model(const std::filesystem::path& path)
+Scene load_from_file(const std::filesystem::path& path)
 {
    Expects(fs::exists(path) && fs::is_regular_file(path));
 
    boost::iostreams::mapped_file file{path.u8string(),
                                       boost::iostreams::mapped_file::mapmode::readonly};
 
-   ucfb::Reader_strict<"HEDR"_mn> reader{
-      gsl::make_span(reinterpret_cast<std::byte*>(file.data()), file.size())};
-
-   return read_msh2(reader.read_child_strict<"MSH2"_mn>());
+   return load_from_memory(
+      gsl::make_span(reinterpret_cast<std::byte*>(file.data()), file.size()));
 }
 
-bool Node::secondary_lod() const noexcept
+Scene load_from_memory(gsl::span<const std::byte> bytes)
 {
-   const static std::set lod_suffices{"_lowres"sv, "_lowrez"sv, "_lod"sv,
-                                      "_lod1"sv,   "_lod2"sv,   "_lod3"sv};
 
-   return lod_suffices.count(name);
+   ucfb::Reader_strict<"HEDR"_mn> reader{bytes};
+
+   auto scene = read_msh2(reader.read_child_strict<"MSH2"_mn>());
+
+   regen_scene_bboxes(scene);
+
+   return scene;
 }
 
 namespace {
 
-Model read_msh2(ucfb::Reader_strict<"MSH2"_mn> msh_reader)
+Scene read_msh2(ucfb::Reader_strict<"MSH2"_mn> msh_reader)
 {
    const auto index_map = build_msh_index_map(msh_reader);
 
-   Model model;
+   Scene scene;
 
    while (msh_reader) {
       auto child = msh_reader.read_child();
 
       switch (child.magic_number()) {
       case "SINF"_mn:
-         read_sinf(ucfb::Reader_strict<"SINF"_mn>{child}, model);
+         read_sinf(ucfb::Reader_strict<"SINF"_mn>{child}, scene);
          break;
       case "MATL"_mn:
-         read_matl(ucfb::Reader_strict<"MATL"_mn>{child}, model);
+         read_matl(ucfb::Reader_strict<"MATL"_mn>{child}, scene);
          break;
       case "MODL"_mn:
-         read_modl(ucfb::Reader_strict<"MODL"_mn>{child}, model, index_map);
+         read_modl(ucfb::Reader_strict<"MODL"_mn>{child}, scene, index_map);
          break;
       }
    }
 
-   model.bbox = build_model_aabb(model);
+   scene.bbox = build_scene_aabb(scene);
 
-   return model;
+   return scene;
 }
 
-void read_sinf(ucfb::Reader_strict<"SINF"_mn> scene_info, Model& model)
+void read_sinf(ucfb::Reader_strict<"SINF"_mn> scene_info, Scene& scene)
 {
-   model.scene_name = scene_info.read_child_strict<"NAME"_mn>().read_string();
+   scene.scene_name = scene_info.read_child_strict<"NAME"_mn>().read_string();
 }
 
-void read_matl(ucfb::Reader_strict<"MATL"_mn> materials, Model& model)
+void read_matl(ucfb::Reader_strict<"MATL"_mn> materials, Scene& scene)
 {
    while (materials) {
-      model.materials.emplace_back(read_matd(materials.read_child_strict<"MATD"_mn>()));
+      scene.materials.emplace_back(read_matd(materials.read_child_strict<"MATD"_mn>()));
    }
 }
 
@@ -166,12 +161,13 @@ Material read_matd(ucfb::Reader_strict<"MATD"_mn> matd_reader)
    return material;
 }
 
-void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Model& model,
+void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Scene& scene,
                const boost::container::flat_map<std::int32_t, std::string>& index_map)
 {
    Node node{};
    Model_type model_type{};
    std::string_view parent_name{};
+   std::int32_t index{-1};
 
    while (modl_reader) {
       auto child = modl_reader.read_child();
@@ -179,6 +175,9 @@ void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Model& model,
       switch (child.magic_number()) {
       case "MTYP"_mn:
          model_type = child.read_trivial<Model_type>();
+         break;
+      case "MNDX"_mn:
+         index = child.read_trivial<std::int32_t>();
          break;
       case "NAME"_mn:
          node.name = child.read_string();
@@ -203,14 +202,14 @@ void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Model& model,
 
    node.type = get_node_type(node.name, model_type);
 
-   if (parent_name.empty()) {
-      model.root_nodes.emplace_back(std::move(node));
+   if (parent_name.empty() && index == 0) {
+      scene.root = std::move(node);
    }
-   else if (auto parent = find_node(model, parent_name); parent) {
+   else if (auto parent = find_node(scene, parent_name); parent) {
       parent->children.emplace_back(std::move(node));
    }
    else {
-      throw std::runtime_error{"freestand scene node found"};
+      throw std::runtime_error{"freestanding scene node found"};
    }
 }
 
@@ -238,12 +237,11 @@ auto read_modl_index_name(ucfb::Reader_strict<"MODL"_mn> modl_reader)
 
 glm::mat4 read_tran(ucfb::Reader_strict<"TRAN"_mn> tran_reader)
 {
-   auto scale = tran_reader.read_trivial<glm::vec3>();
+   [[maybe_unused]] auto scale = tran_reader.read_trivial<glm::vec3>();
    auto rotation = tran_reader.read_trivial<glm::quat>();
    auto translation = tran_reader.read_trivial<glm::vec3>();
 
-   glm::mat4 matrix = glm::scale({}, scale);
-   matrix *= static_cast<glm::mat4>(rotation);
+   glm::mat4 matrix = static_cast<glm::mat4>(rotation);
    matrix *= glm::translate({}, translation);
 
    return matrix;
@@ -267,8 +265,6 @@ void read_geom(ucfb::Reader_strict<"GEOM"_mn> geom_reader, Node& node,
          break;
       }
    }
-
-   node.bbox = build_node_aabb(node);
 }
 
 Segment read_segm(ucfb::Reader_strict<"SEGM"_mn> segm_reader)
@@ -293,7 +289,7 @@ Segment read_segm(ucfb::Reader_strict<"SEGM"_mn> segm_reader)
          segment.normals = read_attribute<glm::vec3>(child);
          break;
       case "UV0L"_mn:
-         segment.texture_coords = read_attribute<glm::vec2>(child);
+         segment.uv_coords = read_attribute<glm::vec2>(child);
          break;
       case "CLRL"_mn:
          segment.colours = read_attribute<glm::u8vec4>(child);
@@ -304,7 +300,7 @@ Segment read_segm(ucfb::Reader_strict<"SEGM"_mn> segm_reader)
          static_assert(sizeof(std::array<Skin_entry, 4>) == 32);
          break;
       case "STRP"_mn:
-         segment.strips = read_strp(ucfb::Reader_strict<"STRP"_mn>{child});
+         segment.indices = read_strp(ucfb::Reader_strict<"STRP"_mn>{child});
          break;
       }
    }
@@ -313,47 +309,46 @@ Segment read_segm(ucfb::Reader_strict<"SEGM"_mn> segm_reader)
 }
 
 auto read_shdw(ucfb::Reader_strict<"SHDW"_mn> shdw_reader)
-   -> std::pair<std::vector<glm::vec3>, std::vector<glm::u16vec3>>
+   -> std::pair<std::vector<glm::vec3>, std::vector<std::array<std::uint16_t, 3>>>
 {
    auto pos_count = shdw_reader.read_trivial<std::int32_t>();
    auto positions = shdw_reader.read_array<glm::vec3>(pos_count);
 
    auto edge_count = shdw_reader.read_trivial<std::int32_t>();
-   auto edges_span = shdw_reader.read_array<glm::u16vec3>(edge_count);
+   auto edges_span = shdw_reader.read_array<std::array<std::uint16_t, 4>>(edge_count);
 
-   std::vector<glm::u16vec3> edges;
+   std::vector<std::array<std::uint16_t, 3>> edges;
    edges.reserve(edge_count);
 
    for (const auto& edge : edges_span) {
-      edges.emplace_back(edge.x, edge.y, edge.z);
+      edges.emplace_back(std::array{edge[0], edge[1], edge[2]});
    }
 
    return {{std::cbegin(positions), std::cend(positions)}, edges};
 }
 
-auto read_strp(ucfb::Reader_strict<"STRP"_mn> strp_reader) -> std::vector<std::uint16_t>
+auto read_strp(ucfb::Reader_strict<"STRP"_mn> strp_reader)
+   -> std::vector<std::array<std::uint16_t, 3>>
 {
-   auto index_count = strp_reader.read_trivial<std::int32_t>();
-   auto indices = strp_reader.read_array<std::uint16_t>(index_count);
+   auto strips_index_count = strp_reader.read_trivial<std::int32_t>();
+   auto strips = strp_reader.read_array<std::uint16_t>(strips_index_count);
 
-   std::vector<std::uint16_t> strips;
-   std::vector<std::uint16_t> cur_strip;
+   std::vector<std::array<std::uint16_t, 3>> indices;
 
-   bool prev_index_marker = false;
-
-   for (gsl::index i = 0; i < indices.size(); ++i) {
-      if (indices[i] & 0x8000u) {
-         if (!std::exchange(prev_index_marker, false)) {
-            prev_index_marker = true;
-            combine_strips(strips, cur_strip);
-            cur_strip.clear();
-         }
+   for (gsl::index i = 0; i < strips.size(); ++i) {
+      if (strips[i] & 0x8000u) {
+         ++i;
+         continue;
       }
 
-      cur_strip.emplace_back(gsl::narrow_cast<std::uint16_t>(indices[i] & ~0x8000u));
+      std::array<std::uint16_t, 3> tri{strips[i - 2], strips[i - 1], strips[i]};
+
+      for (auto& v : tri) v &= ~0x8000u;
+
+      if (!is_degenerate_triangle(tri)) indices.emplace_back(tri);
    }
 
-   return strips;
+   return indices;
 }
 
 Cloth read_clth(ucfb::Reader_strict<"CLTH"_mn> clth_reader)
@@ -371,7 +366,7 @@ Cloth read_clth(ucfb::Reader_strict<"CLTH"_mn> clth_reader)
          cloth.positions = read_attribute<glm::vec3>(child);
          break;
       case "CUV0"_mn:
-         cloth.texture_coords = read_attribute<glm::vec2>(child);
+         cloth.uv_coords = read_attribute<glm::vec2>(child);
          break;
       case "FIDX"_mn:
          cloth.fixed_points = read_attribute<std::uint32_t>(child);
@@ -488,46 +483,6 @@ auto build_msh_index_map(ucfb::Reader_strict<"MSH2"_mn> msh_reader)
    return index_map;
 }
 
-Aa_bbox build_model_aabb(const Model& model) noexcept
-{
-   Aa_bbox bbox{};
-
-   for (auto it = Recursive_model_iterator{model}; it != end(it); ++it) {
-      bbox_combine(bbox, transform(it->bbox, it.transform()));
-   }
-
-   return bbox;
-}
-
-Aa_bbox build_node_aabb(const Node& node) noexcept
-{
-   return bbox_combine(build_segments_aabb(node.segments),
-                       build_cloths_aabb(node.cloths));
-}
-
-Aa_bbox build_segments_aabb(const std::vector<Segment>& segments) noexcept
-{
-   Aa_bbox bbox{};
-
-   for (const auto& segment : segments) {
-      bbox = bbox_combine(bbox, bbox_from_sequence(segment.positions));
-      bbox = bbox_combine(bbox, bbox_from_sequence(segment.shadow_positions));
-   }
-
-   return bbox;
-}
-
-Aa_bbox build_cloths_aabb(const std::vector<Cloth>& cloths) noexcept
-{
-   Aa_bbox bbox{};
-
-   for (const auto& cloth : cloths) {
-      bbox = bbox_combine(bbox, bbox_from_sequence(cloth.positions));
-   }
-
-   return bbox;
-}
-
 Node_type get_node_type(std::string_view name, Model_type model_type) noexcept
 {
    if (begins_with(name, "shadowvolume"sv) || begins_with(name, "sv_"sv) ||
@@ -545,13 +500,9 @@ Node_type get_node_type(std::string_view name, Model_type model_type) noexcept
    return Node_type::mesh;
 }
 
-void combine_strips(std::vector<std::uint16_t>& target, std::vector<std::uint16_t>& other)
+bool is_degenerate_triangle(std::array<std::uint16_t, 3> tri)
 {
-   target.emplace_back(target.back());
-   target.emplace_back(other.front());
-   target.emplace_back(other.front());
-   target.emplace_back(other.at(1));
-   target.insert(std::end(target) - 1, std::cbegin(other), std::cend(other));
+   return tri[0] == tri[1] || tri[0] == tri[2] || tri[1] == tri[2];
 }
 
 }

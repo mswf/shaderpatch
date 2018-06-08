@@ -18,11 +18,11 @@ namespace sp::win32 {
 
 using Path = std::filesystem::path;
 
-template<typename Dialog_class, const CLSID& clsid, const IID& iid>
-std::optional<Path> file_dialog(std::initializer_list<COMDLG_FILTERSPEC> filters = {},
-                                HWND owner = nullptr,
-                                Path starting_dir = boost::filesystem::current_path(),
-                                const std::wstring& filename = L""s)
+template<typename Dialog_class, const CLSID& clsid, const IID& iid, FILEOPENDIALOGOPTIONS options = FOS_NOCHANGEDIR>
+inline std::optional<Path> file_dialog(
+   std::initializer_list<COMDLG_FILTERSPEC> filters = {{L"All Files", L"*.*"}},
+   HWND owner = nullptr, Path starting_dir = std::filesystem::current_path(),
+   const std::wstring& filename = {})
 {
    Com_ptr<Dialog_class> dialog;
 
@@ -31,7 +31,7 @@ std::optional<Path> file_dialog(std::initializer_list<COMDLG_FILTERSPEC> filters
 
    throw_if_failed(dialog->SetFileTypes(filters.size(), filters.begin()));
    throw_if_failed(dialog->SetFileName(filename.c_str()));
-   throw_if_failed(dialog->SetOptions(FOS_NOCHANGEDIR));
+   throw_if_failed(dialog->SetOptions(options));
 
    Com_ptr<IShellItem> starting_item;
 
@@ -62,21 +62,32 @@ std::optional<Path> file_dialog(std::initializer_list<COMDLG_FILTERSPEC> filters
    return std::make_optional<Path>(name);
 }
 
-std::optional<Path> open_file_dialog(
-   std::initializer_list<COMDLG_FILTERSPEC> filters = {}, HWND owner = nullptr,
-   Path starting_dir = std::filesystem::current_path(),
-   const std::wstring& filename = L""s)
+inline std::optional<Path> open_file_dialog(
+   std::initializer_list<COMDLG_FILTERSPEC> filters = {{L"All Files", L"*.*"}},
+   HWND owner = nullptr, Path starting_dir = std::filesystem::current_path(),
+   const std::wstring& filename = {})
 {
    return file_dialog<IFileOpenDialog, CLSID_FileOpenDialog, IID_IFileOpenDialog>(
       filters, owner, std::move(starting_dir), filename);
 }
 
-std::optional<Path> save_file_dialog(
-   std::initializer_list<COMDLG_FILTERSPEC> filters = {}, HWND owner = nullptr,
-   Path starting_dir = std::filesystem::current_path(),
-   const std::wstring& filename = L""s)
+inline std::optional<Path> save_file_dialog(
+   std::initializer_list<COMDLG_FILTERSPEC> filters = {{L"All Files", L"*.*"}},
+   HWND owner = nullptr, Path starting_dir = std::filesystem::current_path(),
+   const std::wstring& filename = {})
 {
    return file_dialog<IFileSaveDialog, CLSID_FileSaveDialog, IID_IFileSaveDialog>(
       filters, owner, std::move(starting_dir), filename);
 }
+
+inline std::optional<Path> folder_dialog(HWND owner = nullptr,
+                                         Path starting_dir = std::filesystem::current_path())
+{
+   return file_dialog<IFileOpenDialog, CLSID_FileOpenDialog, IID_IFileOpenDialog,
+                      FOS_NOCHANGEDIR | FOS_PICKFOLDERS>({{L"All Files",
+                                                           L"*.*"}},
+                                                         owner,
+                                                         std::move(starting_dir), {});
+}
+
 }

@@ -56,6 +56,48 @@ constexpr auto split_string_on(
    return split_string_on(std::basic_string_view<Char_t, Char_triats>{string}, delimiter);
 }
 
+//! \brief Splits a string along the last occurrence of a delimiter, exclusively.
+//!
+//! \param string The string view to split.
+//! \param delimiter The delimiter to split the string on.
+//!
+//! \return Two string views of either side of the delimiter. If the delimiter
+//! was not found, the second view is empty.
+template<typename Char_t, typename Char_triats = std::char_traits<Char_t>>
+constexpr auto split_string_on_last(
+   std::basic_string_view<Char_t, Char_triats> string,
+   typename std::common_type<std::basic_string_view<Char_t, Char_triats>>::type delimiter) noexcept
+   -> std::array<std::basic_string_view<Char_t, Char_triats>, 2>
+{
+   const auto offset = string.find_last_of(delimiter);
+
+   if (offset == string.npos) return {string, std::string_view{""}};
+
+   std::array<std::basic_string_view<Char_t, Char_triats>, 2> split_strings;
+
+   split_strings[0] = string.substr(0, offset);
+   split_strings[1] = string.substr(offset + delimiter.length(),
+                                    string.length() - offset - delimiter.length());
+
+   return split_strings;
+}
+
+//! \brief Splits a string along the last occurrence of a delimiter, exclusively.
+//!
+//! \param string The string to split.
+//! \param delimiter The delimiter to split the string on.
+//!
+//! \return Two string views of either side of the delimiter. If the delimiter
+//! was not found, the second view is empty.
+template<typename Char_t, typename Char_triats = std::char_traits<Char_t>>
+constexpr auto split_string_on_last(
+   const std::basic_string<Char_t, Char_triats>& string,
+   typename std::common_type<std::basic_string_view<Char_t, Char_triats>>::type delimiter) noexcept
+   -> std::array<std::basic_string_view<Char_t, Char_triats>, 2>
+{
+   return split_string_on_last(std::basic_string_view<Char_t, Char_triats>{string},
+                               delimiter);
+}
 //! \brief Splits a string along a delimiter, inclusively. The delimiter
 //! will be included in the second returned string.
 //!

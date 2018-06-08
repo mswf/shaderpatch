@@ -495,6 +495,8 @@ public:
       Expects(type_mn == ucfb_reader.magic_number());
    }
 
+   using Reader::Reader;
+
 private:
    friend class Reader;
 
