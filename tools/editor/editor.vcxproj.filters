@@ -50,6 +50,9 @@
     <ClCompile Include="src\msh\consolidator.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="src\model.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="src\icons.rc">

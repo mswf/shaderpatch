@@ -7,7 +7,8 @@ namespace sp::editor::msh {
 // Flattens a scene down such that only the root node has children.
 [[nodiscard]] Scene flatten_scene(const Scene& scene);
 
-// Pretransform all segments in a scene and sets all node transforms to indentity transforms.
+// Pretransform all (mesh/shadow mesh/collision mesh) segments in a scene and
+// sets all node transforms to indentity transforms.
 void pretransform_scene(Scene& scene) noexcept;
 
 // Pretransform all segments in a node and sets the node's transform to the indentity transform.

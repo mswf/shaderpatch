@@ -24,8 +24,15 @@ Scene flatten_scene(const Scene& scene)
 
 void pretransform_scene(Scene& scene) noexcept
 {
-   for (auto& root_node : Scene_iterator{scene}) {
-      for (auto& node : Scene_iterator{root_node}) pretransform_node(node);
+   for (auto& node : Scene_iterator{scene}) {
+      switch (node.type) {
+      case Node_type::null:
+      case Node_type::bone:
+      case Node_type::collision_node:
+         continue;
+      default:
+         pretransform_node(node);
+      }
    }
 }
 
@@ -46,6 +53,10 @@ void transform_segments(std::vector<Segment>& segments, const glm::mat4& transfo
 
       for (glm::vec3& n : segment.normals) {
          n = glm::normalize(glm::vec4{n, 0.0f} * transform);
+      }
+
+      for (auto& v : segment.shadow_positions) {
+         v = glm::vec4{v, 1.0f} * transform;
       }
    }
 }

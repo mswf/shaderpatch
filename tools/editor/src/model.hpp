@@ -2,12 +2,13 @@
 
 #include "com_ptr.hpp"
 #include "material.hpp"
+#include "msh/scene.hpp"
 #include "shared_array.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -50,10 +51,11 @@ struct Meta_mesh {
 
 class Model {
 public:
-   Model();
+   explicit Model(const msh::Scene& scene);
 
    std::vector<Material> materials;
    std::vector<Mesh> meshes;
+   std::vector<Meta_mesh> collision_meshes;
 
    void drop_gpu_resources() noexcept;
 
@@ -61,6 +63,13 @@ public:
    Com_ptr<ID3D11Buffer> index_buffer() noexcept;
 
 private:
+   int add_mesh_segment(const msh::Node& owning_node,
+                        const msh::Segment& segment, int buffer_offset);
+
+   int add_collision_segment(const msh::Node& owning_node,
+                             const msh::Segment& segment, int buffer_offset);
+
+   Shared_array<std::byte> _buffer;
 };
 
 }

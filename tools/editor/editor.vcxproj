@@ -108,6 +108,7 @@
     <ClCompile Include="src\geom\procedural.cpp" />
     <ClCompile Include="src\imgui_impl_dx11.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\model.cpp" />
     <ClCompile Include="src\msh\consolidator.cpp" />
     <ClCompile Include="src\msh\load.cpp" />
     <ClCompile Include="src\msh\scene.cpp" />

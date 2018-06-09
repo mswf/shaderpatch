@@ -15,6 +15,7 @@ namespace sp {
 
 template<typename Type>
 class Shared_array {
+public:
    static_assert(std::is_default_constructible_v<Type>,
                  "Type must be default constructable.");
 
@@ -65,7 +66,8 @@ class Shared_array {
       }
 
       _memory =
-         std::shared_ptr<Type[]>{data, [_size, allocator{std::move(allocator)}](Type* data) {
+         std::shared_ptr<Type[]>{data, [this, allocator{std::move(allocator)}](
+                                          Type* data) mutable {
                                     std::destroy_n(data, _size);
                                     allocator.deallocate(data, _size);
                                  }};
@@ -131,6 +133,16 @@ class Shared_array {
       }
 
       return _memory[pos];
+   }
+
+   pointer data() noexcept
+   {
+      return _memory.get();
+   }
+
+   const_pointer data() const noexcept
+   {
+      return _memory.get();
    }
 
    reference operator[](size_type pos) noexcept
@@ -233,6 +245,16 @@ class Shared_array {
 
       swap(this->_memory, other._memory);
       swap(this->_size, other._size);
+   }
+
+   gsl::span<Type> to_span() noexcept
+   {
+      return gsl::span<Type>{_memory.get(), _size};
+   }
+
+   gsl::span<const Type> to_span() const noexcept
+   {
+      return gsl::span<const Type>{_memory.get(), _size};
    }
 
 private:

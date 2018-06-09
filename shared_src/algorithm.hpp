@@ -8,6 +8,8 @@
 #include <iterator>
 #include <type_traits>
 
+#include <gsl/gsl>
+
 namespace sp {
 
 template<class ExecutionPolicy, class ForwardIterable, class Function>
@@ -42,4 +44,30 @@ inline void for_each_exception_capable(ExecutionPolicy&& policy,
 
    if (exception_ptr) std::rethrow_exception(exception_ptr);
 }
+
+template<typename Contiguous_range_into, typename Contiguous_range_from>
+inline std::size_t range_memcpy(Contiguous_range_into& into,
+                                const Contiguous_range_from& from)
+{
+   const auto into_size =
+      sizeof(typename Contiguous_range_into::value_type) * into.size();
+   const auto from_size =
+      sizeof(typename Contiguous_range_from::value_type) * from.size();
+
+   Expects(into_size >= from_size);
+
+   std::memcpy(into.data(), from.data(), from_size);
+
+   return from_size;
+}
+
+template<typename Span_type, typename Contiguous_range_from>
+inline std::size_t range_memcpy(gsl::span<Span_type> span,
+                                const Contiguous_range_from& from)
+{
+   static_assert(!std::is_const_v<Span_type>, "Span type can not be const.");
+
+   return range_memcpy(span, from);
+}
+
 }
