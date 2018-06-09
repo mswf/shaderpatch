@@ -67,7 +67,7 @@ inline std::size_t range_memcpy(gsl::span<Span_type> span,
 {
    static_assert(!std::is_const_v<Span_type>, "Span type can not be const.");
 
-   return range_memcpy(span, from);
+   return range_memcpy<decltype(span)>(span, from);
 }
 
 }
