@@ -18,10 +18,12 @@ public:
    odf::Properties properties;
    glm::mat4 transform{};
 
-   auto definition() const noexcept -> const std::shared_ptr<Odf_asset>&;
+   auto odf_asset() const noexcept -> Odf_asset&;
+   auto model_asset() const noexcept -> Model_asset&;
 
 private:
    std::shared_ptr<Odf_asset> _definition;
+   std::shared_ptr<Model_asset> _model;
 };
 
 }

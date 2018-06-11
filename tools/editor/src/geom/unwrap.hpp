@@ -6,7 +6,8 @@
 
 namespace sp::editor::geom {
 
-auto spherical_unwrap(const std::vector<glm::vec3>& positions) -> std::vector<glm::vec2>
+inline auto spherical_unwrap(const std::vector<glm::vec3>& positions)
+   -> std::vector<glm::vec2>
 {
    std::vector<glm::vec2> uvs;
    uvs.reserve(positions.size());

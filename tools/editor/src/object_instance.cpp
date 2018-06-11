@@ -100,11 +100,18 @@ Object_instance::Object_instance(const cfg::Node& object_node,
          }
       }
    }
+
+   _model = assets.model_files.at(make_ci_string(
+      _definition->asset().properties.value_at("GeometryName"sv).value));
+
+   _model->asset();
+
+   std::printf("Harrow!");
 }
 
-auto Object_instance::definition() const noexcept -> const std::shared_ptr<Odf_asset>&
+auto Object_instance::odf_asset() const noexcept -> Odf_asset&
 {
-   return _definition;
+   return *_definition;
 }
 
 }

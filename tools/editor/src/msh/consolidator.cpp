@@ -106,6 +106,8 @@ void Consolidator::perform_mesh_merge(Scene& out_scene)
 
 void Consolidator::perform_shadow_merge(Scene& out_scene)
 {
+   if (_shadow_merge_lists.empty()) return;
+
    Node node;
    node.name = "shadowvolume"s;
    node.type = Node_type::shadow_mesh;
@@ -116,6 +118,8 @@ void Consolidator::perform_shadow_merge(Scene& out_scene)
 
 void Consolidator::perform_collision_merge(Scene& out_scene)
 {
+   if (_collision_merge_lists.empty()) return;
+
    Node node;
    node.name = "collision_mesh"s;
    node.type = Node_type::collision_mesh;

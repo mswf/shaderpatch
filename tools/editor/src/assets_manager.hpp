@@ -23,9 +23,11 @@ class Assets_manager;
 template<typename Type>
 class Basic_asset {
 public:
-   Type& asset(Assets_manager& manager)
+   Basic_asset(Assets_manager& owner) : _owner{owner} {}
+
+   Type& asset()
    {
-      if (!_asset) load(manager);
+      if (!_asset) load();
 
       return *_asset;
    }
@@ -43,10 +45,10 @@ public:
    std::filesystem::path path;
 
 private:
-   void load(Assets_manager& manager)
+   void load()
    {
       try {
-         _asset = Asset_loader<Type>{}.load(path, manager);
+         _asset = Asset_loader<Type>{}.load(path, _owner);
       }
       catch (std::exception& e) {
          throw compose_exception<Asset_load_error>("Exception occured while loading "sv,
@@ -55,6 +57,7 @@ private:
       }
    }
 
+   Assets_manager& _owner;
    std::optional<Type> _asset;
 };
 

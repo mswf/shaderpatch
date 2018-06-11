@@ -26,7 +26,7 @@ Model Asset_loader<Model>::load(const std::filesystem::path& path, Assets_manage
    msh::pretransform_scene(scene);
    scene = msh::Consolidator{}.consolidate(scene);
 
-   return Model{scene};
+   return Model{scene, manager};
 }
 
 }

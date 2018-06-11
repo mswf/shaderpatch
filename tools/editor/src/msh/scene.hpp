@@ -163,7 +163,7 @@ struct Scene {
    Aa_bbox bbox{};
 
    std::vector<Material> materials;
-   Node root;
+   Node root{"null_root", Node_type::null};
 };
 
 }

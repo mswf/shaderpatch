@@ -24,6 +24,7 @@ struct Value {
 };
 
 class Properties : public std::vector<std::pair<std::string, Value>> {
+public:
    using std::vector<std::pair<std::string, Value>>::vector;
 
    Value& value_at(std::string_view key)

@@ -16,6 +16,8 @@
 
 namespace sp::editor {
 
+class Assets_manager;
+
 struct Mesh {
    struct Vertex {
       glm::vec3 position;
@@ -51,7 +53,7 @@ struct Meta_mesh {
 
 class Model {
 public:
-   explicit Model(const msh::Scene& scene);
+   explicit Model(const msh::Scene& scene, Assets_manager& assets);
 
    std::vector<Material> materials;
    std::vector<Mesh> meshes;
@@ -59,8 +61,8 @@ public:
 
    void drop_gpu_resources() noexcept;
 
-   Com_ptr<ID3D11Buffer> vertex_buffer() noexcept;
-   Com_ptr<ID3D11Buffer> index_buffer() noexcept;
+   ID3D11Buffer& vertex_buffer();
+   ID3D11Buffer& index_buffer();
 
 private:
    int add_mesh_segment(const msh::Node& owning_node,
@@ -70,6 +72,7 @@ private:
                              const msh::Segment& segment, int buffer_offset);
 
    Shared_array<std::byte> _buffer;
+   Com_ptr<ID3D11Buffer> _gpu_buffer;
 };
 
 }

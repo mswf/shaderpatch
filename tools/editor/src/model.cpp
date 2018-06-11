@@ -1,5 +1,6 @@
 #include "model.hpp"
 #include "algorithm.hpp"
+#include "assets_manager.hpp"
 #include "msh/iterator.hpp"
 
 #include <gsl/gsl>
@@ -12,7 +13,7 @@ std::size_t calculate_scene_buffer_size(const msh::Scene& scene) noexcept;
 std::size_t get_node_vertex_size(const msh::Node& node) noexcept;
 }
 
-Model::Model(const msh::Scene& scene)
+Model::Model(const msh::Scene& scene, Assets_manager&)
    : _buffer{calculate_scene_buffer_size(scene)}
 {
    int buffer_offset = 0;
@@ -32,6 +33,11 @@ Model::Model(const msh::Scene& scene)
          }
       }
    }
+}
+
+void Model::drop_gpu_resources() noexcept
+{
+   _gpu_buffer = nullptr;
 }
 
 int Model::add_mesh_segment(const msh::Node& owning_node,

@@ -83,7 +83,8 @@ Scene load_from_file(const std::filesystem::path& path)
                                       boost::iostreams::mapped_file::mapmode::readonly};
 
    return load_from_memory(
-      gsl::make_span(reinterpret_cast<std::byte*>(file.data()), file.size()));
+      gsl::make_span(reinterpret_cast<const std::byte*>(file.const_data()),
+                     file.size()));
 }
 
 Scene load_from_memory(gsl::span<const std::byte> bytes)
@@ -134,7 +135,9 @@ void read_sinf(ucfb::Reader_strict<"SINF"_mn> scene_info, Scene& scene)
 
 void read_matl(ucfb::Reader_strict<"MATL"_mn> materials, Scene& scene)
 {
-   while (materials) {
+   auto material_count = materials.read_trivial<std::int32_t>();
+
+   for (auto i = 0; i < material_count; ++i) {
       scene.materials.emplace_back(read_matd(materials.read_child_strict<"MATD"_mn>()));
    }
 }
@@ -157,6 +160,25 @@ Material read_matd(ucfb::Reader_strict<"MATD"_mn> matd_reader)
    material.type = atrb_reader.read_trivial_unaligned<Render_type>();
    material.params =
       atrb_reader.read_trivial_unaligned<std::array<std::int8_t, 2>>();
+
+   while (matd_reader) {
+      auto child = matd_reader.read_child();
+
+      switch (child.magic_number()) {
+      case "TX0D"_mn:
+         material.textures[0] = child.read_string();
+         break;
+      case "TX1D"_mn:
+         material.textures[1] = child.read_string();
+         break;
+      case "TX2D"_mn:
+         material.textures[2] = child.read_string();
+         break;
+      case "TX3D"_mn:
+         material.textures[3] = child.read_string();
+         break;
+      }
+   }
 
    return material;
 }
@@ -202,7 +224,7 @@ void read_modl(ucfb::Reader_strict<"MODL"_mn> modl_reader, Scene& scene,
 
    node.type = get_node_type(node.name, model_type);
 
-   if (parent_name.empty() && index == 0) {
+   if (parent_name.empty() && scene.root.children.empty()) {
       scene.root = std::move(node);
    }
    else if (auto parent = find_node(scene, parent_name); parent) {
