@@ -1,0 +1,21 @@
+# Fixes
+- Fixed lightbeams not being fogged.
+- Fixed particles not being fogged.
+- Fixed shields not being fogged.
+- Fixed low-quality water not being fogged.
+- Fixed the detail normal map in `normal_ext.detail` and `normal_ext.specular.detail` not being used.
+- Fixed lights with projected textures not being handled correctly in `normal_ext.specular` and  `normal_ext.specular.detail`.
+
+# Scary Changes
+- Removed unused SWBF1 shaders `bump`, `detail`, `pervertexdiffuselighting`, `scroll`, `specmap`, 
+
+# Issues
+- Refraction projected texture uses linear_wrap_sampler.
+- Projected cube textures are broken again.
+
+# Work still to be done.
+- sRGB to linear handling for vertex colors.
+- get_material_color and get_static_diffuse_color refactors
+- Lighting is a mess in `normal_ext`. Could also be imrpoved across the board similar to transform handling.
+- Fixup water refraction condition handling in C++.
+- Fix Gaussian Scene Blur and Damage Overlay being disabled.

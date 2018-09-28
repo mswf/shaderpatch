@@ -31,33 +31,6 @@ namespace sp::direct3d {
 
 namespace {
 
-void set_active_light_constants(IDirect3DDevice9& device, Shader_flags flags) noexcept
-{
-   std::array<BOOL, 5> constants{};
-
-   if ((flags & Shader_flags::light_dir) == Shader_flags::light_dir) {
-      constants[0] = true;
-   }
-
-   if ((flags & Shader_flags::light_point) == Shader_flags::light_point) {
-      std::fill_n(std::begin(constants) + 1, 1, true);
-   }
-
-   if ((flags & Shader_flags::light_point2) == Shader_flags::light_point2) {
-      std::fill_n(std::begin(constants) + 1, 2, true);
-   }
-
-   if ((flags & Shader_flags::light_point4) == Shader_flags::light_point4) {
-      std::fill_n(std::begin(constants) + 1, 3, true);
-   }
-
-   if ((flags & Shader_flags::light_spot) == Shader_flags::light_spot) {
-      constants[4] = true;
-   }
-
-   device.SetPixelShaderConstantB(0, constants.data(), constants.size());
-}
-
 constexpr bool is_constant_being_set(int constant, int start, int count) noexcept
 {
    return constant >= start && constant < (start + count);
@@ -613,17 +586,12 @@ HRESULT Device::CreateDepthStencilSurface(UINT width, UINT height, D3DFORMAT for
 HRESULT Device::CreateVertexShader(const DWORD* function,
                                    IDirect3DVertexShader9** shader) noexcept
 {
-   Com_ptr<IDirect3DVertexShader9> vertex_shader;
+   Expects(function && shader);
 
-   const auto result =
-      _device->CreateVertexShader(function, vertex_shader.clear_and_assign());
+   const auto metadata =
+      deserialize_shader_metadata(reinterpret_cast<const std::byte*>(function));
 
-   if (result != S_OK) return result;
-
-   const auto metadata = get_shader_metadata(function);
-
-   *shader = new Vertex_shader{std::move(vertex_shader),
-                               metadata.value_or(Shader_metadata{})};
+   *shader = new Vertex_shader{metadata};
 
    return S_OK;
 }
@@ -631,17 +599,7 @@ HRESULT Device::CreateVertexShader(const DWORD* function,
 HRESULT Device::CreatePixelShader(const DWORD* function,
                                   IDirect3DPixelShader9** shader) noexcept
 {
-   Com_ptr<IDirect3DPixelShader9> pixel_shader;
-
-   const auto result =
-      _device->CreatePixelShader(function, pixel_shader.clear_and_assign());
-
-   if (result != S_OK) return result;
-
-   const auto metadata = get_shader_metadata(function);
-
-   *shader = new Pixel_shader{std::move(pixel_shader),
-                              metadata.value_or(Shader_metadata{})};
+   *shader = new Pixel_shader{};
 
    return S_OK;
 }
@@ -726,31 +684,34 @@ HRESULT Device::SetDepthStencilSurface(IDirect3DSurface9* new_z_stencil) noexcep
 
 HRESULT Device::SetVertexShader(IDirect3DVertexShader9* shader) noexcept
 {
+   if (_on_shader_set) _on_shader_set();
+
    if (!shader) {
-      _game_vertex_shader = nullptr;
-      return _device->SetVertexShader(nullptr);
+      _device->SetVertexShader(nullptr);
+      _device->SetPixelShader(nullptr);
+
+      return S_OK;
    }
 
-   auto& vertex_shader = static_cast<Vertex_shader&>(*shader);
+   _shader_metadata = static_cast<Vertex_shader*>(shader)->metadata;
 
-   _vs_metadata = vertex_shader.metadata;
-   vertex_shader.get()->AddRef();
-   _game_vertex_shader.reset(vertex_shader.get());
+   refresh_game_shader();
 
    if (_hdr_rendering) {
       for (auto i = 0; i < 4; ++i) {
-         _device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, _vs_metadata.srgb_state[i]);
+         _device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE,
+                                  _shader_metadata.srgb_state[i]);
       }
    }
 
    _refresh_material = true;
 
-   if (_material && _material->target_rendertype() == _vs_metadata.rendertype) {
+   if (_material && _material->target_rendertype() == _shader_metadata.rendertype_name) {
       return S_OK;
    }
 
    if (_effects.active()) {
-      if (_vs_metadata.rendertype == "shadowquad"sv) {
+      if (_shader_metadata.rendertype == Rendertype::shadowquad) {
          Com_ptr<IDirect3DSurface9> shadow_surface;
 
          _shadow_texture->GetSurfaceLevel(0, shadow_surface.clear_and_assign());
@@ -771,17 +732,17 @@ HRESULT Device::SetVertexShader(IDirect3DVertexShader9* shader) noexcept
             return S_OK;
          };
       }
-      else if (_vs_metadata.rendertype == "skyfog"sv) {
+      else if (_shader_metadata.rendertype == Rendertype::skyfog) {
          apply_skyfog_ext();
 
          _discard_next_draw_call = true;
       }
-      else if (_vs_metadata.rendertype == "hdr"sv) {
+      else if (_shader_metadata.rendertype == Rendertype::hdr) {
          _game_doing_bloom_pass = true;
          _discard_draw_calls = _effects.active();
       }
       else if (std::exchange(_game_doing_bloom_pass, false) &&
-               _vs_metadata.rendertype != "hdr"sv) {
+               _shader_metadata.rendertype != Rendertype::hdr) {
          _effects_rt_resolved = true;
          _discard_draw_calls = false;
          set_hdr_rendering(false);
@@ -792,34 +753,7 @@ HRESULT Device::SetVertexShader(IDirect3DVertexShader9* shader) noexcept
       }
    }
 
-   set_active_light_constants(*_device, vertex_shader.metadata.shader_flags);
-
-   return _device->SetVertexShader(vertex_shader.get());
-}
-
-HRESULT Device::SetPixelShader(IDirect3DPixelShader9* shader) noexcept
-{
-   if (_on_ps_shader_set) _on_ps_shader_set();
-
-   if (!shader) {
-      _game_pixel_shader = nullptr;
-
-      return _device->SetPixelShader(nullptr);
-   }
-
-   auto& pixel_shader = static_cast<Pixel_shader&>(*shader);
-   const auto& metadata = pixel_shader.metadata;
-
-   pixel_shader.get()->AddRef();
-   _game_pixel_shader.reset(pixel_shader.get());
-
-   if (_material) {
-      _refresh_material = true;
-
-      return S_OK;
-   }
-
-   if (metadata.rendertype == "shield"sv) {
+   if (_shader_metadata.rendertype == Rendertype::shield) {
       update_refraction_texture();
       bind_refraction_texture();
       bind_water_texture();
@@ -828,19 +762,26 @@ HRESULT Device::SetPixelShader(IDirect3DPixelShader9* shader) noexcept
       _device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
       _device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 
-      _on_ps_shader_set = [this] {
+      _on_shader_set = [this] {
          _device->SetRenderState(D3DRS_SRCBLEND, _state_block.at(D3DRS_SRCBLEND));
          _device->SetRenderState(D3DRS_DESTBLEND, _state_block.at(D3DRS_DESTBLEND));
          _device->SetRenderState(D3DRS_CULLMODE, _state_block.at(D3DRS_CULLMODE));
 
-         _on_ps_shader_set = nullptr;
+         _on_shader_set = nullptr;
       };
    }
-   else if (metadata.rendertype == "water"sv) {
-      _discard_draw_calls = metadata.entry_point == "discard_ps"sv;
+   else if (_shader_metadata.rendertype == Rendertype::water) {
+      _discard_draw_calls = _shader_metadata.shader_name == "discard"sv;
 
-      if ((metadata.entry_point == "normal_map_distorted_reflection_ps"sv) ||
-          (metadata.entry_point == "normal_map_distorted_reflection_specular_ps"sv)) {
+      // TODO: Fix up this mess of conditionals. Like seriously...
+      if (_shader_metadata.shader_name == "projective bumpmap with distorted reflection"sv ||
+          _shader_metadata.shader_name == "normal map without distortion"sv ||
+          _shader_metadata.shader_name == "normal map with reflection"sv ||
+          _shader_metadata.shader_name ==
+             "projective bumpmap with distorted reflection with specular"sv ||
+          _shader_metadata.shader_name ==
+             "projective bumpmap without distortion with specular"sv ||
+          _shader_metadata.shader_name == "normal map with reflection with specular"sv) {
          if (_current_scene == Current_scene::_near &&
              !std::exchange(_near_water_refraction, true)) {
             update_refraction_texture();
@@ -854,29 +795,38 @@ HRESULT Device::SetPixelShader(IDirect3DPixelShader9* shader) noexcept
          bind_water_texture();
       }
    }
-   else if (metadata.rendertype == "refraction"sv && metadata.state_name != "far"sv &&
-            metadata.state_name != "nodistortion"sv) {
+   else if (_shader_metadata.rendertype == Rendertype::refraction &&
+            _shader_metadata.shader_name != "far"sv &&
+            _shader_metadata.shader_name != "nodistortion"sv) {
       if (!std::exchange(_ice_refraction, true)) update_refraction_texture();
 
       bind_refraction_texture();
    }
    else if (_config.rendering.gaussian_blur_blur_particles &&
-            metadata.rendertype == "particle"sv && metadata.state_name == "blur"sv) {
+            _shader_metadata.rendertype == Rendertype::particle &&
+            _shader_metadata.shader_name == "blur"sv) {
       if (!std::exchange(_particles_blur, true)) resolve_blur_surface();
 
       _device->SetTexture(1, _blur_texture.get());
    }
    else if (_config.rendering.smooth_bloom && !_effects.active() &&
-            metadata.rendertype == "hdr"sv) {
-      if (auto ext_shader = _shaders.at("stock bloom ext"s).find(metadata.state_name);
+            _shader_metadata.rendertype == Rendertype::hdr) {
+      if (auto ext_shader =
+             _shaders.rendertypes.at("stock bloom ext"s).find(_shader_metadata.shader_name);
           ext_shader != nullptr) {
-         ext_shader->bind(*_device);
+         ext_shader->bind(*_device, _shader_metadata.vertex_shader_flags,
+                          _shader_metadata.pixel_shader_flags);
 
          return S_OK;
       }
    }
 
-   return _device->SetPixelShader(pixel_shader.get());
+   return S_OK;
+}
+
+HRESULT Device::SetPixelShader(IDirect3DPixelShader9*) noexcept
+{
+   return S_OK;
 }
 
 HRESULT Device::SetRenderState(D3DRENDERSTATETYPE state, DWORD value) noexcept
@@ -1058,7 +1008,8 @@ HRESULT Device::StretchRect(IDirect3DSurface9* source_surface,
 HRESULT Device::DrawPrimitive(D3DPRIMITIVETYPE primitive_type,
                               UINT start_vertex, UINT primitive_count) noexcept
 {
-   if (!_game_pixel_shader) {
+   // TODO: Gaussian Scene Blur and Damage Overlay work again.
+   if (false) {
       if (_config.rendering.gaussian_scene_blur &&
           is_blur_texture_state(_texture_states)) {
          apply_gaussian_scene_blur();
@@ -1146,6 +1097,13 @@ void Device::init_optional_format_types() noexcept
       _effects_ultra_stock_hdr_format = D3DFMT_A16B16G16R16F;
    }
 }
+void Device::refresh_game_shader() noexcept
+{
+   _shaders.rendertypes.at(_shader_metadata.rendertype_name)
+      .at(_shader_metadata.shader_name)
+      .bind(*_device, _shader_metadata.vertex_shader_flags,
+            _shader_metadata.pixel_shader_flags);
+}
 
 void Device::post_process() noexcept
 {
@@ -1180,12 +1138,11 @@ void Device::late_effects_resolve() noexcept
    effects::set_point_clamp_sampler(*_device, 0);
    effects::set_fs_pass_blend_state(*_device);
 
-   _shaders.at("late effects resolve"s).at("main"s).bind(*_device);
+   _shaders.rendertypes.at("late effects resolve"s).at("main"s).bind(*_device);
 
    _device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 
-   _device->SetVertexShader(_game_vertex_shader.get());
-   _device->SetPixelShader(_game_pixel_shader.get());
+   refresh_game_shader();
    apply_vertex_input_state(*_device, _vertex_input_state);
    apply_blend_state(*_device, _state_block);
    apply_sampler_state(*_device, _sampler_states[0], 0);
@@ -1194,8 +1151,10 @@ void Device::late_effects_resolve() noexcept
 void Device::refresh_material() noexcept
 {
    if (std::exchange(_refresh_material, false) && _material) {
-      if (_vs_metadata.rendertype == _material->target_rendertype()) {
-         _material->update(_vs_metadata.state_name, _vs_metadata.shader_flags);
+      if (_shader_metadata.rendertype_name == _material->target_rendertype()) {
+         _material->update(_shader_metadata.state_name,
+                           _shader_metadata.vertex_shader_flags,
+                           _shader_metadata.pixel_shader_flags);
       }
    }
 }
@@ -1206,10 +1165,7 @@ void Device::clear_material() noexcept
       _material = nullptr;
       _refresh_material = false;
 
-      _device->SetVertexShader(_game_vertex_shader.get());
-      _device->SetPixelShader(_game_pixel_shader.get());
-
-      set_active_light_constants(*_device, _vs_metadata.shader_flags);
+      refresh_game_shader();
    }
 }
 
@@ -1250,7 +1206,7 @@ void Device::blur_shadows() noexcept
 {
    _device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
 
-   _effects.shadows_blur.apply(_shaders.at("shadows blur"s), _rt_allocator,
+   _effects.shadows_blur.apply(_shaders.rendertypes.at("shadows blur"s), _rt_allocator,
                                *_near_depth_texture, *_shadow_texture);
 
    apply_sampler_state(*_device, _sampler_states[0], 0);
@@ -1281,8 +1237,7 @@ void Device::resolve_blur_surface() noexcept
 
    _effects.scene_blur.apply(_shaders, _rt_allocator, *_blur_texture);
 
-   _device->SetVertexShader(_game_vertex_shader.get());
-   _device->SetPixelShader(_game_pixel_shader.get());
+   refresh_game_shader();
    _device->SetRenderTarget(0, rt.get());
 
    _device->SetTexture(0, actual_texture.get());
@@ -1329,8 +1284,7 @@ void Device::apply_damage_overlay_effect() noexcept
 
    _effects.damage_overlay.apply(_shaders, color, *resolve.texture(), *rt);
 
-   _device->SetVertexShader(_game_vertex_shader.get());
-   _device->SetPixelShader(_game_pixel_shader.get());
+   refresh_game_shader();
    _device->SetRenderTarget(0, rt.get());
 
    _device->SetTexture(0, actual_texture.get());
@@ -1363,7 +1317,7 @@ void Device::apply_skyfog_ext() noexcept
    _device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ONE);
    _device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
 
-   _shaders.at("skyfog ext"s).at("main"s).bind(*_device);
+   _shaders.rendertypes.at("skyfog ext"s).at("main"s).bind(*_device);
 
    _device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 
@@ -1384,7 +1338,8 @@ void Device::set_hdr_rendering(bool hdr_rendering) noexcept
       _hdr_state_ps_const.set(*_device, {2.2f, 1.0f});
 
       for (auto i = 0; i < 4; ++i) {
-         _device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, _vs_metadata.srgb_state[i]);
+         _device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE,
+                                  _shader_metadata.srgb_state[i]);
       }
    }
    else {
